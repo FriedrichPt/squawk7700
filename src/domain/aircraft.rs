@@ -157,6 +157,28 @@ impl Aircraft {
         self.db_flags.map_or(false, |f| f & 1 != 0)
     }
 
+    /// Returns `true` if this aircraft is identifiable as German military
+    /// by at least one of: ICAO hex range, callsign prefix, or aircraft type.
+    pub fn is_german_military(&self) -> bool {
+        self.is_military()
+            && (self.has_german_military_icao()
+                || self.has_german_military_callsign()
+                || self.registration_country() == Some("Germany (Military)"))
+    }
+
+    fn has_german_military_icao(&self) -> bool {
+        let hex = self.hex.to_ascii_uppercase();
+        hex.starts_with("3C") || hex.starts_with("3D")
+    }
+
+    fn has_german_military_callsign(&self) -> bool {
+        const PREFIXES: &[&str] = &["GAF", "NAV", "CTM", "ASF"];
+        self.flight
+            .as_deref()
+            .map(|f| PREFIXES.iter().any(|p| f.trim().to_ascii_uppercase().starts_with(p)))
+            .unwrap_or(false)
+    }
+
     /// Convenience: returns `true` when a valid lat/lon position is present.
     pub fn has_position(&self) -> bool {
         self.lat.is_some() && self.lon.is_some()
