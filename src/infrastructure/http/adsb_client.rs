@@ -53,4 +53,27 @@ impl AdsbGateway for AdsbHttpClient {
 
         Ok(response)
     }
+
+    async fn fetch_military(&self) -> Result<AdsbResponse, DomainError> {
+        let url = format!("{}/v2/mil", self.config.base_url);
+
+        debug!(%url, "Fetching military aircraft");
+
+        let raw = self
+            .client
+            .get(&url)
+            .send()
+            .await
+            .map_err(|e| DomainError::DataUnavailable(e.to_string()))?
+            .error_for_status()
+            .map_err(|e| DomainError::DataUnavailable(e.to_string()))?
+            .text()
+            .await
+            .map_err(|e| DomainError::DataUnavailable(e.to_string()))?;
+
+        let response = serde_json::from_str::<AdsbResponse>(&raw)
+            .map_err(|e| DomainError::DataUnavailable(e.to_string()))?;
+
+        Ok(response)
+    }
 }

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use tracing::{debug, info};
+use tracing::info;
 
 use crate::application::ports::{AdsbGateway, AircraftRepository};
 use crate::domain::error::DomainError;
@@ -19,25 +19,18 @@ impl FetchAndStoreAircraft {
         }
     }
 
-    pub async fn execute(&self, lat: f64, lon: f64, radius_nm: u32) -> Result<(), DomainError> {
-        let response = self.gateway.fetch_by_location(lat, lon, radius_nm).await?;
+    pub async fn execute(&self) -> Result<(), DomainError> {
+        let response = self.gateway.fetch_military().await?;
 
         info!(
             total = response.aircraft.len(),
-            "Received aircraft snapshot"
+            "Received military aircraft snapshot"
         );
 
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map_err(|e| DomainError::DatabaseError(e.to_string()))?
             .as_secs() as i64;
-
-        for aircraft in &response.aircraft {
-            if aircraft.hex == "3F7EA2" {
-                println!("alarm");
-                debug!(icao = %aircraft.hex, db_flags = ?aircraft.db_flags, "raw aircraft");
-            }
-        }
 
         for aircraft in response.aircraft.iter().filter(|a| a.is_german_military()) {
             info!(

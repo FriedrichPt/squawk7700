@@ -14,10 +14,10 @@ pub struct SqliteRepository {
 impl SqliteRepository {
     pub fn new(path: &str) -> Result<Self, DomainError> {
         let conn = Connection::open(path).map_err(|e| DomainError::DatabaseError(e.to_string()))?;
-        let repo = Self {
+
+        Ok(Self {
             conn: Mutex::new(conn),
-        };
-        Ok(repo)
+        })
     }
 }
 
@@ -25,12 +25,14 @@ impl AircraftRepository for SqliteRepository {
     fn insert_aircraft(&self, a: &Aircraft) -> Result<(), DomainError> {
         debug!(icao = %a.hex, "Inserting aircraft");
 
+        let mode_s_only = a.source_type.as_deref() == Some("mode_s");
+
         let conn = self.conn.lock().unwrap();
         conn.execute(
             "INSERT OR IGNORE INTO aircraft
                 (icao, callsign, aircraft_type, description, owner_operator,
-                 registration, category, db_flags, year, first_seen)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, unixepoch())",
+                 registration, category, db_flags, year, mode_s_only, first_seen)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, unixepoch())",
             params![
                 a.hex,
                 a.flight.as_deref(),
@@ -41,6 +43,7 @@ impl AircraftRepository for SqliteRepository {
                 a.category.as_deref(),
                 a.db_flags,
                 a.year.as_deref(),
+                mode_s_only,
             ],
         )
         .map_err(|e| DomainError::DatabaseError(e.to_string()))?;
@@ -56,11 +59,13 @@ impl AircraftRepository for SqliteRepository {
 
         let alt_baro = a.alt_baro.as_ref().and_then(|v| v.as_f64());
 
+        let mlat_count = a.mlat.as_ref().map(|v| v.len() as i64);
+
         let conn = self.conn.lock().unwrap();
         conn.execute(
-            "INSERT INTO positions (icao, lat, lon, alt_baro, gs, mach, timestamp)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-            params![a.hex, lat, lon, alt_baro, a.gs, a.mach, timestamp],
+            "INSERT INTO positions (icao, source_type, lat, lon, alt_baro, gs, mach, mlat_count, timestamp)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![a.hex, a.source_type, lat, lon, alt_baro, a.gs, a.mach, mlat_count, timestamp],
         )
         .map_err(|e| DomainError::DatabaseError(e.to_string()))?;
 

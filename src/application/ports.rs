@@ -15,6 +15,9 @@ pub trait AdsbGateway: Send + Sync {
         lon: f64,
         radius_nm: u32,
     ) -> Result<AdsbResponse, DomainError>;
+
+    /// Fetch all aircraft globally flagged as military (dbFlags & 1).
+    async fn fetch_military(&self) -> Result<AdsbResponse, DomainError>;
 }
 
 /// Outbound port: persistent storage for aircraft and their positions.

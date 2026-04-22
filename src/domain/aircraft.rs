@@ -165,9 +165,6 @@ impl Aircraft {
     fn has_german_military_icao(&self) -> bool {
         let hex = self.hex.to_ascii_uppercase();
 
-        if hex == "3F7ECF" {
-            println!("hit");
-        }
         hex.starts_with("3C")
             || hex.starts_with("3D")
             || hex.starts_with("3E")
