@@ -53,29 +53,4 @@ impl AdsbGateway for AdsbHttpClient {
 
         Ok(response)
     }
-
-    async fn fetch_by_icao(&self, icao: &str) -> Result<AdsbResponse, DomainError> {
-        let url = format!("{}/v2/icao/{icao}", self.config.base_url);
-
-        debug!(%url, "Fetching aircraft by ICAO");
-
-        let raw = self
-            .client
-            .get(&url)
-            .send()
-            .await
-            .map_err(|e| DomainError::DataUnavailable(e.to_string()))?
-            .error_for_status()
-            .map_err(|e| DomainError::DataUnavailable(e.to_string()))?
-            .text()
-            .await
-            .map_err(|e| DomainError::DataUnavailable(e.to_string()))?;
-
-        println!("RAW JSON:\n{}", &raw[..raw.len().min(2000)]);
-
-        let response = serde_json::from_str::<AdsbResponse>(&raw)
-            .map_err(|e| DomainError::DataUnavailable(e.to_string()))?;
-
-        Ok(response)
-    }
 }

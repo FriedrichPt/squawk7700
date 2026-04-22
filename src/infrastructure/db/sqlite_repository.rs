@@ -13,71 +13,30 @@ pub struct SqliteRepository {
 
 impl SqliteRepository {
     pub fn new(path: &str) -> Result<Self, DomainError> {
-        let conn = Connection::open(path)
-            .map_err(|e| DomainError::DatabaseError(e.to_string()))?;
-        let repo = Self { conn: Mutex::new(conn) };
-        repo.migrate()?;
+        let conn = Connection::open(path).map_err(|e| DomainError::DatabaseError(e.to_string()))?;
+        let repo = Self {
+            conn: Mutex::new(conn),
+        };
         Ok(repo)
-    }
-
-    fn migrate(&self) -> Result<(), DomainError> {
-        let conn = self.conn.lock().unwrap();
-        conn.execute_batch(
-            "CREATE TABLE IF NOT EXISTS aircraft (
-                icao            TEXT PRIMARY KEY,
-                callsign        TEXT,
-                aircraft_type   TEXT,
-                description     TEXT,
-                owner_operator  TEXT,
-                registration    TEXT,
-                category        TEXT,
-                db_flags        INTEGER,
-                year            TEXT,
-                first_seen      INTEGER NOT NULL,
-                last_seen       INTEGER NOT NULL
-            );
-
-            CREATE TABLE IF NOT EXISTS positions (
-                id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                icao        TEXT NOT NULL REFERENCES aircraft(icao),
-                lat         REAL NOT NULL,
-                lon         REAL NOT NULL,
-                alt_baro    REAL,
-                gs          REAL,
-                mach        REAL,
-                timestamp   INTEGER NOT NULL
-            );",
-        )
-        .map_err(|e| DomainError::DatabaseError(e.to_string()))
     }
 }
 
 impl AircraftRepository for SqliteRepository {
-    fn upsert_aircraft(&self, a: &Aircraft) -> Result<(), DomainError> {
-        debug!(icao = %a.hex, "Upserting aircraft");
+    fn insert_aircraft(&self, a: &Aircraft) -> Result<(), DomainError> {
+        debug!(icao = %a.hex, "Inserting aircraft");
 
         let conn = self.conn.lock().unwrap();
         conn.execute(
-            "INSERT INTO aircraft
+            "INSERT OR IGNORE INTO aircraft
                 (icao, callsign, aircraft_type, description, owner_operator,
-                 registration, category, db_flags, year, first_seen, last_seen)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, unixepoch(), unixepoch())
-             ON CONFLICT(icao) DO UPDATE SET
-                callsign       = COALESCE(excluded.callsign, callsign),
-                aircraft_type  = COALESCE(excluded.aircraft_type, aircraft_type),
-                description    = COALESCE(excluded.description, description),
-                owner_operator = COALESCE(excluded.owner_operator, owner_operator),
-                registration   = COALESCE(excluded.registration, registration),
-                category       = COALESCE(excluded.category, category),
-                db_flags       = COALESCE(excluded.db_flags, db_flags),
-                year           = COALESCE(excluded.year, year),
-                last_seen      = unixepoch()",
+                 registration, category, db_flags, year, first_seen)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, unixepoch())",
             params![
                 a.hex,
                 a.flight.as_deref(),
                 a.t.as_deref(),
                 a.desc.as_deref(),
-                a.ownOp.as_deref(),
+                a.own_op.as_deref(),
                 a.r.as_deref(),
                 a.category.as_deref(),
                 a.db_flags,

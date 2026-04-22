@@ -1,6 +1,9 @@
 use async_trait::async_trait;
 
-use crate::domain::{aircraft::{AdsbResponse, Aircraft}, error::DomainError};
+use crate::domain::{
+    aircraft::{AdsbResponse, Aircraft},
+    error::DomainError,
+};
 
 /// Outbound port: anything that can fetch live ADS-B data must implement this.
 #[async_trait]
@@ -12,15 +15,12 @@ pub trait AdsbGateway: Send + Sync {
         lon: f64,
         radius_nm: u32,
     ) -> Result<AdsbResponse, DomainError>;
-
-    /// Fetch a single aircraft by its ICAO hex identifier.
-    async fn fetch_by_icao(&self, icao: &str) -> Result<AdsbResponse, DomainError>;
 }
 
 /// Outbound port: persistent storage for aircraft and their positions.
 pub trait AircraftRepository: Send + Sync {
-    /// Insert or update the aircraft record (upsert by ICAO).
-    fn upsert_aircraft(&self, aircraft: &Aircraft) -> Result<(), DomainError>;
+    /// Insert the aircraft record if it doesn't exist yet (ignore duplicates).
+    fn insert_aircraft(&self, aircraft: &Aircraft) -> Result<(), DomainError>;
 
     /// Append a position snapshot for the given ICAO.
     fn insert_position(&self, aircraft: &Aircraft, timestamp: i64) -> Result<(), DomainError>;

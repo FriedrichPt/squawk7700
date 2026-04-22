@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use tracing::info;
+use tracing::{debug, info};
 
 use crate::application::ports::{AdsbGateway, AircraftRepository};
 use crate::domain::error::DomainError;
@@ -32,6 +32,13 @@ impl FetchAndStoreAircraft {
             .map_err(|e| DomainError::DatabaseError(e.to_string()))?
             .as_secs() as i64;
 
+        for aircraft in &response.aircraft {
+            if aircraft.hex == "3F7EA2" {
+                println!("alarm");
+                debug!(icao = %aircraft.hex, db_flags = ?aircraft.db_flags, "raw aircraft");
+            }
+        }
+
         for aircraft in response.aircraft.iter().filter(|a| a.is_german_military()) {
             info!(
                 icao = %aircraft.hex,
@@ -41,7 +48,7 @@ impl FetchAndStoreAircraft {
                 "German military aircraft"
             );
 
-            self.repository.upsert_aircraft(aircraft)?;
+            self.repository.insert_aircraft(aircraft)?;
 
             if aircraft.has_position() {
                 self.repository.insert_position(aircraft, now)?;

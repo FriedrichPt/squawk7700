@@ -30,7 +30,7 @@ async fn main() {
 
     let lat = 51.1657;
     let lon = 10.4515;
-    let radius_nm = 4000;
+    let radius_nm = 600;
 
     if let Err(e) = use_case.execute(lat, lon, radius_nm).await {
         eprintln!("Error: {e}");

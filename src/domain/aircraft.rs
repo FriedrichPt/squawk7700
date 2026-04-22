@@ -1,7 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-use crate::domain::registration::country_from_registration;
-
 /// Represents a single aircraft as returned by the adsb.lol API.
 /// All fields are optional because the API omits keys when data is unavailable.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -138,7 +136,7 @@ pub struct Aircraft {
     pub db_flags: Option<u32>,
 
     /// Aircraft owner / operator from database
-    pub ownOp: Option<String>,
+    pub own_op: Option<String>,
 
     /// Year of manufacture
     pub year: Option<String>,
@@ -161,21 +159,30 @@ impl Aircraft {
     /// by at least one of: ICAO hex range, callsign prefix, or aircraft type.
     pub fn is_german_military(&self) -> bool {
         self.is_military()
-            && (self.has_german_military_icao()
-                || self.has_german_military_callsign()
-                || self.registration_country() == Some("Germany (Military)"))
+            && (self.has_german_military_icao() || self.has_german_military_callsign())
     }
 
     fn has_german_military_icao(&self) -> bool {
         let hex = self.hex.to_ascii_uppercase();
-        hex.starts_with("3C") || hex.starts_with("3D")
+
+        if hex == "3F7ECF" {
+            println!("hit");
+        }
+        hex.starts_with("3C")
+            || hex.starts_with("3D")
+            || hex.starts_with("3E")
+            || hex.starts_with("3F")
     }
 
     fn has_german_military_callsign(&self) -> bool {
         const PREFIXES: &[&str] = &["GAF", "NAV", "CTM", "ASF"];
         self.flight
             .as_deref()
-            .map(|f| PREFIXES.iter().any(|p| f.trim().to_ascii_uppercase().starts_with(p)))
+            .map(|f| {
+                PREFIXES
+                    .iter()
+                    .any(|p| f.trim().to_ascii_uppercase().starts_with(p))
+            })
             .unwrap_or(false)
     }
 
@@ -184,9 +191,11 @@ impl Aircraft {
         self.lat.is_some() && self.lon.is_some()
     }
 
+    /*
     pub fn registration_country(&self) -> Option<&'static str> {
         self.r.as_deref().and_then(country_from_registration)
     }
+    */
 }
 
 /// Top-level response envelope returned by `/v2/` endpoints.
@@ -195,13 +204,4 @@ pub struct AdsbResponse {
     /// List of aircraft currently tracked.
     #[serde(rename = "ac")]
     pub aircraft: Vec<Aircraft>,
-
-    /// Total number of messages processed by the aggregator.
-    pub total: Option<u64>,
-
-    /// Server-side Unix timestamp of the snapshot.
-    pub now: Option<f64>,
-
-    /// Messages per second ingested by the aggregator.
-    pub messages: Option<u64>,
 }
