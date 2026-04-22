@@ -1,0 +1,14 @@
+services:
+  squawk7700:
+    build: .
+    container_name: squawk7700
+    restart: unless-stopped
+    volumes:
+      - ./data:/data
+    environment:
+      - RUST_LOG=squawk7700=info
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

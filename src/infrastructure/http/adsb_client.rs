@@ -23,37 +23,6 @@ impl AdsbHttpClient {
 
 #[async_trait]
 impl AdsbGateway for AdsbHttpClient {
-    async fn fetch_by_location(
-        &self,
-        lat: f64,
-        lon: f64,
-        radius_nm: u32,
-    ) -> Result<AdsbResponse, DomainError> {
-        let url = format!(
-            "{}/v2/lat/{lat}/lon/{lon}/dist/{radius_nm}",
-            self.config.base_url
-        );
-
-        debug!(%url, "Fetching aircraft by location");
-
-        let raw = self
-            .client
-            .get(&url)
-            .send()
-            .await
-            .map_err(|e| DomainError::DataUnavailable(e.to_string()))?
-            .error_for_status()
-            .map_err(|e| DomainError::DataUnavailable(e.to_string()))?
-            .text()
-            .await
-            .map_err(|e| DomainError::DataUnavailable(e.to_string()))?;
-
-        let response = serde_json::from_str::<AdsbResponse>(&raw)
-            .map_err(|e| DomainError::DataUnavailable(e.to_string()))?;
-
-        Ok(response)
-    }
-
     async fn fetch_military(&self) -> Result<AdsbResponse, DomainError> {
         let url = format!("{}/v2/mil", self.config.base_url);
 

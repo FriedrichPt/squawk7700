@@ -8,14 +8,6 @@ use crate::domain::{
 /// Outbound port: anything that can fetch live ADS-B data must implement this.
 #[async_trait]
 pub trait AdsbGateway: Send + Sync {
-    /// Fetch all aircraft within `radius_nm` nautical miles of the given coordinates.
-    async fn fetch_by_location(
-        &self,
-        lat: f64,
-        lon: f64,
-        radius_nm: u32,
-    ) -> Result<AdsbResponse, DomainError>;
-
     /// Fetch all aircraft globally flagged as military (dbFlags & 1).
     async fn fetch_military(&self) -> Result<AdsbResponse, DomainError>;
 }

@@ -14,6 +14,37 @@ pub struct SqliteRepository {
 impl SqliteRepository {
     pub fn new(path: &str) -> Result<Self, DomainError> {
         let conn = Connection::open(path).map_err(|e| DomainError::DatabaseError(e.to_string()))?;
+        conn.execute_batch(
+            "PRAGMA foreign_keys = ON;
+
+             CREATE TABLE IF NOT EXISTS aircraft (
+                 icao            TEXT PRIMARY KEY,
+                 callsign        TEXT,
+                 aircraft_type   TEXT,
+                 description     TEXT,
+                 owner_operator  TEXT,
+                 registration    TEXT,
+                 category        TEXT,
+                 db_flags        INTEGER,
+                 year            TEXT,
+                 mode_s_only     INTEGER NOT NULL DEFAULT 0,
+                 first_seen      INTEGER NOT NULL
+             );
+
+             CREATE TABLE IF NOT EXISTS positions (
+                 id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                 icao        TEXT NOT NULL REFERENCES aircraft(icao),
+                 source_type TEXT,
+                 lat         REAL NOT NULL,
+                 lon         REAL NOT NULL,
+                 alt_baro    REAL,
+                 gs          REAL,
+                 mach        REAL,
+                 mlat_count  INTEGER,
+                 timestamp   INTEGER NOT NULL
+             );",
+        )
+        .map_err(|e| DomainError::DatabaseError(e.to_string()))?;
 
         Ok(Self {
             conn: Mutex::new(conn),
