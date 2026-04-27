@@ -66,23 +66,61 @@ Drei Erkennungsmerkmale kombinieren:
 
 Nur Flugzeuge die mindestens ein Kriterium erfüllen werden gespeichert.
 
+## Repo-Struktur
+
+- backend/ → Rust-Service (Cargo, Dockerfile)
+- web/ → SvelteKit-Frontend (Vite-Dev auf :5173)
+- compose.yml → orchestriert das Backend (Build-Context backend/)
+- daily.db → DB-Snapshot für die Visualisierung (lokal, an der Wurzel)
+
 ## Architektur
 
-Hexagonale Architektur (Ports & Adapters):
+Hexagonale Architektur (Ports & Adapters), alles in `backend/src/`:
 
 - domain/ → Kernlogik, keine externen Dependencies
 - application/ → Use Cases + Ports (Traits)
-- infrastructure/ → HTTP, DB, Config (konkrete Implementierungen)
+- infrastructure/ → konkrete Implementierungen
+  - http/ → Outbound (reqwest → adsb.lol)
+  - db/ → SQLite-Repository
+  - web/ → Inbound HTTP (axum) für die Visualisierungs-API
+  - config/ → Konfigurations-Defaults
 
 Neue Features immer von domain/ nach außen denken, nie andersrum.
 
+## API (Read-Only)
+
+Inbound-Adapter unter `infrastructure/web/`. Default `127.0.0.1:8080`,
+überschreibbar via `SQUAWK_API_ADDR`. DB-Pfad via `SQUAWK_DB_PATH`,
+Default `../daily.db` (relativ zum Backend-Cwd).
+
+- GET /api/health
+- GET /api/aircraft → AircraftSummary[]
+- GET /api/aircraft/:icao/days → ISO-Dates (Europe/Berlin)
+- GET /api/aircraft/:icao/track?date=YYYY-MM-DD → Track {points, stops}
+
+Track-Segmentierung: Gaps > 600s zwischen zwei Positionen werden als Stop
+registriert und starten ein neues Segment (im Use Case, nicht in der DB).
+
+## Frontend
+
+SvelteKit + Leaflet unter `web/`. Dev:
+
+```
+cd web && npm run dev
+```
+
+Vite proxied `/api/*` an `http://127.0.0.1:8080` (überschreibbar via
+`VITE_API_PROXY`). Leaflet wird dynamisch im `onMount` geladen, daher
+keine SSR-Sonderbehandlung nötig.
+
 ## Geplante Ausbaustufen
 
-- [ ] Militär-Filter (ICAO + Callsign + Typ)
-- [ ] SQLite Datenbankanbindung (infrastructure/db/)
-- [ ] Flug-Tracking (takeoff/landing detection)
-- [ ] Kontinuierlicher Polling Service
-- [ ] Visualisierung (Karte, Flottenübersicht)
+- [x] Militär-Filter (ICAO + Callsign + Typ)
+- [x] SQLite Datenbankanbindung (infrastructure/db/)
+- [x] Kontinuierlicher Polling Service
+- [x] Read-API + erste Visualisierung (Tagesroute pro ICAO)
+- [ ] Flug-Tracking (takeoff/landing detection in DB persistiert)
+- [ ] Flottenübersicht (Karte aller bekannten Heimatbasen)
 - [ ] Kontext-Agent (Flugmuster + aktuelle Nachrichten)
 - [ ] Hetzner Server Deployment
 
@@ -92,5 +130,7 @@ Neue Features immer von domain/ nach außen denken, nie andersrum.
 - Fehler immer als DomainError wrappen
 - Kein unwrap() in produktivem Code
 - API-Keys nur über Umgebungsvariablen, niemals hardcoded
+- Domain-Typen für API-Antworten dürfen serde::Serialize haben, aber keine
+  axum/http-Abhängigkeit
 - Vor größeren Änderungen Planning Mode nutzen (Shift+Tab x2)
 - Nach jedem abgeschlossenen Feature committen

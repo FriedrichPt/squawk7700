@@ -1,12 +1,16 @@
 services:
   squawk7700:
-    build: .
+    build: ./backend
     container_name: squawk7700
     restart: unless-stopped
     volumes:
       - ./data:/data
     environment:
       - RUST_LOG=squawk7700=info
+      - SQUAWK_API_ADDR=0.0.0.0:8080
+      - SQUAWK_DB_PATH=/data/daily.db
+    ports:
+      - "8080:8080"
     logging:
       driver: json-file
       options:
